@@ -1,0 +1,6 @@
+.env
+__pycache__/
+.venv/
+.idea/
+*.chroma/
+news_relational_memory/
