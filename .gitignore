@@ -1,6 +1,23 @@
+# Secret Environment Files
 .env
-__pycache__/
-.venv/
+*.env
+
+# IDE & Editor Configurations
 .idea/
+.vscode/
+*.swp
+
+# Python Cache & Virtual Environments
+__pycache__/
+*.pyc
+venv/
+.venv/
+env/
+.cache/
+
+# Data & Output Logs
+logs/
+data/output/
 *.chroma/
 news_relational_memory/
+.DS_Store
