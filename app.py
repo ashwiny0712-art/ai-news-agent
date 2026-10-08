@@ -2,85 +2,23 @@ import streamlit as st
 import asyncio
 import time
 
-# 1. Import updated backend function
+# 1. Import backend agent execution function
 from news_agent import run_agent
 
 # 2. Page Configuration
 st.set_page_config(
-    page_title="AI Strategic News Agent",
+    page_title="Secure Clarity - AI Agent",
     page_icon="🤖",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# 3. Apply Custom CSS Palette
-st.markdown("""
-    <style>
-    .stApp {
-        background-color: #FAF9F6 !important;
-        color: #111827 !important;
-    }
-
-    h1, h2, h3, h4, h5, h6, p, span, label {
-        color: #111827 !important;
-    }
-
-    section[data-testid="stSidebar"] {
-        background-color: #7B6F6D !important;
-        border-right: 1px solid #C4BDAC;
-    }
-
-    section[data-testid="stSidebar"] * {
-        color: #FAF9F6 !important;
-    }
-
-    div[data-testid="stSidebar"] button {
-        background-color: #005697 !important;
-        color: #FAF9F6 !important;
-        border: none !important;
-        border-radius: 8px !important;
-    }
-
-    div[data-testid="stChatMessage"]:has(div[data-testid="chatAvatar-user"]) {
-        background-color: #005697 !important;
-        color: #FAF9F6 !important;
-        border-radius: 8px;
-    }
-
-    div[data-testid="stChatMessage"]:has(div[data-testid="chatAvatar-user"]) * {
-        color: #FAF9F6 !important;
-    }
-
-    div[data-testid="stChatMessage"]:has(div[data-testid="chatAvatar-assistant"]) {
-        background-color: #FFFFFF !important;
-        border: 1px solid #CBD5E1 !important;
-        border-radius: 8px;
-    }
-
-    div[data-testid="stChatMessage"] h3 {
-        color: #005697 !important;
-        border-bottom: 2px solid #FF4500;
-        padding-bottom: 4px;
-    }
-
-    div[data-testid="stChatMessage"] strong {
-        color: #FF4500 !important;
-    }
-
-    a {
-        color: #005697 !important;
-        font-weight: bold;
-        text-decoration: underline;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# 4. State Management
+# 3. State Management
 if "chats" not in st.session_state:
     st.session_state.chats = {
         1: {
-            "title": "Default Topic Analysis",
-            "messages": [{"role": "assistant",
-                          "content": "Hello! Ask me about current live events, news, or situation reports."}]
+            "title": "Recent Chat",
+            "messages": []
         }
     }
 if "active_chat_id" not in st.session_state:
@@ -90,51 +28,101 @@ if "active_chat_id" not in st.session_state:
 def create_new_chat():
     new_id = len(st.session_state.chats) + 1
     st.session_state.chats[new_id] = {
-        "title": f"New Chat {new_id}",
-        "messages": [
-            {"role": "assistant", "content": "Hello! Ask me about current live events, news, or situation reports."}]
+        "title": f"Chat {new_id}",
+        "messages": []
     }
     st.session_state.active_chat_id = new_id
 
 
-# 5. Sidebar Navigation
+# 4. Sidebar Navigation (Pure Python Layout)
 with st.sidebar:
-    st.header("Chat History")
-    if st.button("➕ New Chat", key="btn_new_chat", use_container_width=True, type="primary"):
+    # Sidebar Header Branding using native layout columns
+    col_icon, col_text = st.columns([1, 3], vertical_alignment="center")
+    with col_icon:
+        st.button("SC", disabled=True, type="primary")
+    with col_text:
+        st.subheader("Secure Clarity")
+        st.caption("Professional AI Agent")
+
+    st.write("")
+
+    # New Chat Primary Action Button
+    if st.button("＋ New Chat", key="btn_new_chat", use_container_width=True, type="primary"):
         create_new_chat()
         st.rerun()
 
     st.divider()
 
+    # Chat History List
+    st.caption("Recent Chats")
     for chat_id, chat_data in st.session_state.chats.items():
-        btn_type = "primary" if chat_id == st.session_state.active_chat_id else "secondary"
-        if st.button(f"💬 {chat_data['title']}", key=f"chat_{chat_id}", type=btn_type, use_container_width=True):
+        is_active = chat_id == st.session_state.active_chat_id
+        btn_type = "primary" if is_active else "secondary"
+
+        if st.button(f"🕒 {chat_data['title']}", key=f"chat_{chat_id}", type=btn_type, use_container_width=True):
             st.session_state.active_chat_id = chat_id
             st.rerun()
 
 current_chat = st.session_state.chats[st.session_state.active_chat_id]
 
-# 6. Main Interface
-st.title("🤖 AI Strategic News Agent")
-st.caption("Powered by Mistral AI, Tavily Search & ChromaDB Memory")
-
+# 5. Main Interface Container
 chat_container = st.container()
 
 with chat_container:
-    for message in current_chat["messages"]:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    # Initial Hero / Empty State UI
+    if len(current_chat["messages"]) == 0:
+        st.space = st.write("")
 
-# 7. Processing Pipeline
-if prompt := st.chat_input("Ask about live news or events..."):
+        # Center Icon & Title
+        _, center_col, _ = st.columns([1, 2, 1])
+        with center_col:
+            st.title("How can I help you?")
+            st.write("")
+
+        # Suggestion Action Cards using Native Button Columns
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button(
+                    "📰  Today's News\n\nWant to know about today's news?",
+                    key="card_news",
+                    use_container_width=True
+            ):
+                st.session_state.suggested_prompt = "What are today's top live news stories?"
+                st.rerun()
+
+        with col2:
+            if st.button(
+                    "📑  Summarize Data\n\nAnalyze a recent report or document.",
+                    key="card_summary",
+                    use_container_width=True
+            ):
+                st.session_state.suggested_prompt = "Summarize recent strategic intelligence data."
+                st.rerun()
+
+    else:
+        # Display Message History
+        for message in current_chat["messages"]:
+            with st.chat_message(message["role"]):
+                st.write(message["content"])
+
+# Check for suggestion clicks
+input_default = st.session_state.pop("suggested_prompt", None)
+
+# 6. Processing Pipeline & Input Bar
+prompt = st.chat_input("Message Secure Clarity...")
+if input_default and not prompt:
+    prompt = input_default
+
+if prompt:
     current_chat["messages"].append({"role": "user", "content": prompt})
 
-    if len(current_chat["messages"]) == 2:
+    # Auto-generate topic title on first input
+    if len(current_chat["messages"]) == 1:
         current_chat["title"] = prompt[:20] + "..." if len(prompt) > 20 else prompt
 
     with chat_container:
         with st.chat_message("user"):
-            st.markdown(prompt)
+            st.write(prompt)
 
         with st.chat_message("assistant"):
             with st.status("🔍 Agent searching & analyzing live news...", expanded=True) as status:
@@ -142,18 +130,22 @@ if prompt := st.chat_input("Ask about live news or events..."):
 
                 config = {"configurable": {"thread_id": f"session_{st.session_state.active_chat_id}"}}
 
-                # Fetch payload containing both final text and retrieved sources
-                result = asyncio.run(run_agent(prompt, config))
+                # Async execution wrapper
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                result = loop.run_until_complete(run_agent(prompt, config))
+                loop.close()
+
                 agent_output = result["text"]
                 sources = result["sources"]
 
                 if sources:
-                    st.write(f" Found {len(sources)} news articles via Tavily API.")
+                    st.write(f"Extracted {len(sources)} source articles via Tavily API.")
 
                 status.update(label="Analysis Complete!", state="complete", expanded=False)
 
 
-            # Stream response text smoothly
+            # Response streaming output
             def stream_response():
                 for word in agent_output.split(" "):
                     yield word + " "
@@ -162,15 +154,16 @@ if prompt := st.chat_input("Ask about live news or events..."):
 
             full_response = st.write_stream(stream_response)
 
-            # Render clickable source expanders if articles were retrieved
+            # Expandable references section
             if sources:
-                with st.expander("🔗 View Extracted Source Documents & Headlines"):
+                with st.expander("🔗 View Extracted Source Documents"):
                     seen = set()
                     for src in sources:
                         if src["url"] not in seen:
-                            st.markdown(f"**[{src['title']}]({src['url']})**")
+                            st.write(f"**[{src['title']}]({src['url']})**")
                             st.caption(f"{src['content'][:180]}...")
                             st.divider()
                             seen.add(src["url"])
 
     current_chat["messages"].append({"role": "assistant", "content": full_response})
+    st.rerun()

@@ -89,7 +89,7 @@ def search_and_extract_news(query: str) -> str:
             similarity = calculate_similarity(last_text, current_text)
             if similarity >= 0.90:
                 return (
-                    f"SIMILARITY_MATCH: Content is {similarity*100:.1f}% identical to previous search. "
+                    f"SIMILARITY_MATCH: Content is {similarity * 100:.1f}% identical to previous search. "
                     "Halt further tool calls and generate final response now."
                 )
 
@@ -143,15 +143,17 @@ async def run_agent(user_input: str, config: dict) -> Dict[str, Any]:
             )
 
             response = await app.ainvoke({"messages": [("user", user_input)]}, config=config)
-            final_message = response["messages"][-1].content
+
+            # Extract final response content safely across different message formats
+            last_msg = response["messages"][-1]
+            final_message = last_msg.content
 
             if isinstance(final_message, list):
                 final_message = "\n".join([item.get('text', '') for item in final_message if isinstance(item, dict)])
 
-            # Explicitly append reference links to the content payload if missing
+            # Explicitly append reference links to content payload if missing
             if FETCHED_SOURCES and "http" not in final_message:
                 final_message += "\n\n### 🔗 RELEVANT SOURCES & HEADLINES\n"
-                # Deduplicate sources by URL
                 seen_urls = set()
                 for src in FETCHED_SOURCES:
                     if src['url'] not in seen_urls:
