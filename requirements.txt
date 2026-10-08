@@ -6,3 +6,4 @@ langgraph
 tavily-python
 chromadb
 python-dotenv
+sentence-transformers
