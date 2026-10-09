@@ -35,8 +35,8 @@ FETCHED_SOURCES: List[Dict[str, str]] = []  # Stores structured sources
 # NVIDIA NIM Model endpoints
 NVIDIA_MODELS = [
     "meta/llama-3.1-70b-instruct",
-    "meta/llama-3.1-8b-instruct",
-    "mistralai/mistral-7b-instruct-v0.3"
+    "meta/llama3-70b-instruct",
+    "mistralai/mixtral-8x7b-instruct-v0.1"
 ]
 
 # 2. VECTORSTORE & TOOLS
@@ -171,7 +171,8 @@ async def run_agent(user_input: str, config: dict) -> Dict[str, Any]:
 
         except Exception as e:
             last_exception = e
-            print(f"Model {model_name} failed: {str(e)}")
+            # Log the exact failure in Streamlit Cloud logs
+            print(f"Model {model_name} failed: {type(e).__name__} - {str(e)}")
             continue
 
-    raise RuntimeError(f"NVIDIA API Error: {str(last_exception)}")
+    raise RuntimeError(f"NVIDIA API Error ({type(last_exception).__name__}): {str(last_exception)}")
