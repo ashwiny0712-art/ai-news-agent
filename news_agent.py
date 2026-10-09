@@ -34,7 +34,7 @@ FETCHED_SOURCES: List[Dict[str, str]] = []  # Stores structured sources
 MISTRAL_MODELS = [
     "mistral-small-latest",
     "mistral-large-latest",
-    "open-mistral-7b"
+    "open-mistral-nemo"
 ]
 
 # 2. VECTORSTORE & TOOLS
