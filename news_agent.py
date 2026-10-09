@@ -3,7 +3,7 @@ import asyncio
 import warnings
 from typing import List, Dict, Any
 from difflib import SequenceMatcher
-
+import streamlit as st
 from dotenv import load_dotenv
 from tavily import TavilyClient
 
@@ -19,11 +19,11 @@ warnings.filterwarnings("ignore")
 # 1. ENVIRONMENT VARIABLES SETUP
 load_dotenv()
 
-MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
-TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY") or st.secrets.get("MISTRAL_API_KEY")
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY") or st.secrets.get("TAVILY_API_KEY")
 
 if not MISTRAL_API_KEY or not TAVILY_API_KEY:
-    raise ValueError("Missing API keys in .env file.")
+    raise ValueError("Missing API keys in environment variables or Streamlit Secrets.")
 
 os.environ["MISTRAL_API_KEY"] = MISTRAL_API_KEY
 os.environ["TAVILY_API_KEY"] = TAVILY_API_KEY
