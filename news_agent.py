@@ -32,11 +32,11 @@ os.environ["TAVILY_API_KEY"] = TAVILY_API_KEY
 SEARCH_HISTORY: List[str] = []
 FETCHED_SOURCES: List[Dict[str, str]] = []  # Stores structured sources
 
-# NVIDIA NIM Model endpoints
+# NVIDIA NIM Model endpoints with explicit tool-calling support
 NVIDIA_MODELS = [
-    "meta/llama-3.1-70b-instruct",
-    "meta/llama3-70b-instruct",
-    "mistralai/mixtral-8x7b-instruct-v0.1"
+    "meta/llama-3.3-70b-instruct",
+    "nvidia/llama-3.1-nemotron-70b-instruct",
+    "meta/llama-3.1-70b-instruct"
 ]
 
 # 2. VECTORSTORE & TOOLS
