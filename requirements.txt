@@ -1,5 +1,5 @@
 streamlit
-langchain-mistralai
+langchain-nvidia-ai-endpoints
 langchain-huggingface
 langchain-chroma
 langgraph

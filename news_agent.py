@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from tavily import TavilyClient
 
 from langchain_core.tools import tool
-from langchain_mistralai import ChatMistralAI
+from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langgraph.prebuilt import create_react_agent
@@ -19,22 +19,24 @@ warnings.filterwarnings("ignore")
 # 1. ENVIRONMENT VARIABLES SETUP
 load_dotenv()
 
-MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY") or st.secrets.get("MISTRAL_API_KEY")
+# Read from os.environ first, fallback to Streamlit Cloud Secrets
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY") or st.secrets.get("NVIDIA_API_KEY")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY") or st.secrets.get("TAVILY_API_KEY")
 
-if not MISTRAL_API_KEY or not TAVILY_API_KEY:
+if not NVIDIA_API_KEY or not TAVILY_API_KEY:
     raise ValueError("Missing API keys in environment variables or Streamlit Secrets.")
 
-os.environ["MISTRAL_API_KEY"] = MISTRAL_API_KEY
+os.environ["NVIDIA_API_KEY"] = NVIDIA_API_KEY
 os.environ["TAVILY_API_KEY"] = TAVILY_API_KEY
 
 SEARCH_HISTORY: List[str] = []
 FETCHED_SOURCES: List[Dict[str, str]] = []  # Stores structured sources
 
-MISTRAL_MODELS = [
-    "mistral-small-latest",
-    "mistral-large-latest",
-    "open-mistral-nemo"
+# NVIDIA NIM Model endpoints
+NVIDIA_MODELS = [
+    "meta/llama-3.1-70b-instruct",
+    "meta/llama-3.1-8b-instruct",
+    "mistralai/mistral-7b-instruct-v0.3"
 ]
 
 # 2. VECTORSTORE & TOOLS
@@ -109,7 +111,7 @@ def save_to_memory(summary_content: str) -> str:
 tools = [recall_past_relations, search_and_extract_news, save_to_memory]
 
 system_prompt = (
-    "You are an AI News & Tactical Advisory Agent powered by Mistral AI.\n\n"
+    "You are an AI News & Tactical Advisory Agent powered by NVIDIA AI.\n\n"
     "OPERATIONAL INSTRUCTIONS:\n"
     "1. Always search for news when queried about events, weather, or situation reports.\n"
     "2. If a tool returns 'LIMIT_REACHED' or 'SIMILARITY_MATCH', DO NOT call tools again. Synthesize instantly.\n"
@@ -128,11 +130,13 @@ async def run_agent(user_input: str, config: dict) -> Dict[str, Any]:
     SEARCH_HISTORY = []
     FETCHED_SOURCES = []  # Clear previous call metadata
 
-    for model_name in MISTRAL_MODELS:
+    last_exception = None
+
+    for model_name in NVIDIA_MODELS:
         try:
-            llm = ChatMistralAI(
+            llm = ChatNVIDIA(
                 model=model_name,
-                api_key=MISTRAL_API_KEY,
+                api_key=NVIDIA_API_KEY,
                 temperature=0
             )
             app = create_react_agent(
@@ -166,10 +170,8 @@ async def run_agent(user_input: str, config: dict) -> Dict[str, Any]:
             }
 
         except Exception as e:
-            err_str = str(e)
-            if any(term in err_str.lower() for term in ["404", "not_found", "model"]):
-                continue
-            else:
-                raise e
+            last_exception = e
+            print(f"Model {model_name} failed: {str(e)}")
+            continue
 
-    raise RuntimeError("Unable to reach Mistral API with provided key.")
+    raise RuntimeError(f"NVIDIA API Error: {str(last_exception)}")
