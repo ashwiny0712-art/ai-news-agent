@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from tavily import TavilyClient
 
 from langchain_core.tools import tool
-from langchain_mistralai import ChatMistralAI
+from langchain_openai import ChatOpenAI
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 from langgraph.prebuilt import create_react_agent
@@ -19,22 +19,24 @@ warnings.filterwarnings("ignore")
 # 1. ENVIRONMENT VARIABLES SETUP
 load_dotenv()
 
-MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 
-if not MISTRAL_API_KEY or not TAVILY_API_KEY:
-    raise ValueError("Missing API keys in .env file.")
+if not OPENROUTER_API_KEY or not TAVILY_API_KEY:
+    raise ValueError("Missing API keys in .env file (OPENROUTER_API_KEY & TAVILY_API_KEY required).")
 
-os.environ["MISTRAL_API_KEY"] = MISTRAL_API_KEY
+os.environ["OPENROUTER_API_KEY"] = OPENROUTER_API_KEY
 os.environ["TAVILY_API_KEY"] = TAVILY_API_KEY
 
 SEARCH_HISTORY: List[str] = []
 FETCHED_SOURCES: List[Dict[str, str]] = []  # Stores structured sources
 
-MISTRAL_MODELS = [
-    "mistral-small-latest",
-    "mistral-large-latest",
-    "open-mistral-7b"
+# Multi-provider models accessible via OpenRouter
+OPENROUTER_MODELS = [
+    "meta-llama/llama-3.3-70b-instruct",
+    "google/gemini-2.0-flash-lite-001",
+    "mistralai/mistral-7b-instruct:free",
+    "deepseek/deepseek-chat"
 ]
 
 # 2. VECTORSTORE & TOOLS
@@ -89,7 +91,7 @@ def search_and_extract_news(query: str) -> str:
             similarity = calculate_similarity(last_text, current_text)
             if similarity >= 0.90:
                 return (
-                    f"SIMILARITY_MATCH: Content is {similarity*100:.1f}% identical to previous search. "
+                    f"SIMILARITY_MATCH: Content is {similarity * 100:.1f}% identical to previous search. "
                     "Halt further tool calls and generate final response now."
                 )
 
@@ -109,7 +111,7 @@ def save_to_memory(summary_content: str) -> str:
 tools = [recall_past_relations, search_and_extract_news, save_to_memory]
 
 system_prompt = (
-    "You are an AI News & Tactical Advisory Agent powered by Mistral AI.\n\n"
+    "You are an AI News & Tactical Advisory Agent powered by OpenRouter.\n\n"
     "OPERATIONAL INSTRUCTIONS:\n"
     "1. Always search for news when queried about events, weather, or situation reports.\n"
     "2. If a tool returns 'LIMIT_REACHED' or 'SIMILARITY_MATCH', DO NOT call tools again. Synthesize instantly.\n"
@@ -123,16 +125,17 @@ system_prompt = (
 memory = MemorySaver()
 
 
-async def run_agent(user_input: str, config: dict) -> Dict[str, Any]:
+def run_agent(user_input: str, config: dict) -> Dict[str, Any]:
     global SEARCH_HISTORY, FETCHED_SOURCES
     SEARCH_HISTORY = []
     FETCHED_SOURCES = []  # Clear previous call metadata
 
-    for model_name in MISTRAL_MODELS:
+    for model_name in OPENROUTER_MODELS:
         try:
-            llm = ChatMistralAI(
+            llm = ChatOpenAI(
                 model=model_name,
-                api_key=MISTRAL_API_KEY,
+                openai_api_key=OPENROUTER_API_KEY,
+                openai_api_base="https://openrouter.ai/api/v1",
                 temperature=0
             )
             app = create_react_agent(
@@ -142,16 +145,19 @@ async def run_agent(user_input: str, config: dict) -> Dict[str, Any]:
                 checkpointer=memory
             )
 
-            response = await app.ainvoke({"messages": [("user", user_input)]}, config=config)
-            final_message = response["messages"][-1].content
+            # Removed 'await' and changed 'ainvoke' to 'invoke'
+            response = app.invoke({"messages": [("user", user_input)]}, config=config)
+
+            # Extract final response content safely across different message formats
+            last_msg = response["messages"][-1]
+            final_message = last_msg.content
 
             if isinstance(final_message, list):
                 final_message = "\n".join([item.get('text', '') for item in final_message if isinstance(item, dict)])
 
-            # Explicitly append reference links to the content payload if missing
+            # Explicitly append reference links to content payload if missing
             if FETCHED_SOURCES and "http" not in final_message:
                 final_message += "\n\n### 🔗 RELEVANT SOURCES & HEADLINES\n"
-                # Deduplicate sources by URL
                 seen_urls = set()
                 for src in FETCHED_SOURCES:
                     if src['url'] not in seen_urls:
@@ -164,10 +170,14 @@ async def run_agent(user_input: str, config: dict) -> Dict[str, Any]:
             }
 
         except Exception as e:
-            err_str = str(e)
-            if any(term in err_str.lower() for term in ["404", "not_found", "model"]):
+            err_str = str(e).lower()
+            if any(term in err_str for term in ["404", "not_found", "model", "429", "rate", "410", "gone", "end of life"]):
+                print(f"Skipping {model_name} (Unavailable, Deprecated, or Rate Limited)...")
                 continue
             else:
+                print(f"\n--- API ERROR ON MODEL: {model_name} ---")
+                print(str(e))
+                print("-----------------------------------------\n")
                 raise e
 
-    raise RuntimeError("Unable to reach Mistral API with provided key.")
+    raise RuntimeError("Unable to reach OpenRouter API. All models in the list failed.")
